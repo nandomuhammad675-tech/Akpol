@@ -8,6 +8,7 @@ SG.controllers.Check = {
     return html;
   },
   submit: function (raw) {
+    // Validasi cepat di browser; analisis utama dilakukan oleh backend.
     var a = SG.models.Url.analyze(raw);
     if (a.err) {
       SG.state.error = a.err;
@@ -18,8 +19,31 @@ SG.controllers.Check = {
     SG.router.go("/hasil?url=" + encodeURIComponent(raw));
   },
   result: function (query) {
-    var a = SG.models.Url.analyze(query.url || SG.models.Content.demoUrl);
-    if (a.err) return SG.views.message(a.err);
-    return SG.views.result(SG.models.Risk.build(a));
+    var raw = query.url || SG.models.Content.demoUrl;
+    var local = SG.models.Url.analyze(raw);
+    if (local.err) return SG.views.message(local.err);
+
+    // Panggilan ke API bersifat asynchronous: tampilkan "loading" dulu,
+    // lalu ganti isi halaman setelah hasil datang.
+    var token = (SG.state.token = (SG.state.token || 0) + 1);
+    function show(html) {
+      // Abaikan bila pengguna sudah pindah halaman / memeriksa URL lain
+      if (SG.state.token !== token) return;
+      if (location.hash.indexOf("#/hasil") !== 0) return;
+      document.getElementById("app").innerHTML = SG.views.layout("/hasil", html);
+    }
+    SG.models.Api.check(raw).then(
+      function (r) {
+        show(SG.views.result(r));
+      },
+      function (e) {
+        show(
+          SG.views.message(
+            (e && e.message) || "Terjadi kesalahan. Silakan coba lagi.",
+          ),
+        );
+      },
+    );
+    return SG.views.message("Memeriksa URL, mohon tunggu sebentar...");
   },
 };
