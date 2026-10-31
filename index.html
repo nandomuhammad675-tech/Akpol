@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SCAMGUARD - Cek Tautan, Hindari Ancaman</title>
+    <link rel="stylesheet" href="assets/css/style.css" />
+  </head>
+  <body>
+    <div id="app"></div>
+
+    <!-- Urutan penting: namespace -> models -> views -> controllers -> router -> main -->
+    <script src="app/namespace.js"></script>
+
+    <script src="app/models/ContentModel.js"></script>
+    <script src="app/models/RiskModel.js"></script>
+    <script src="app/models/UrlModel.js"></script>
+
+    <script src="app/views/icons.js"></script>
+    <script src="app/views/layout.js"></script>
+    <script src="app/views/home.js"></script>
+    <script src="app/views/check.js"></script>
+    <script src="app/views/result.js"></script>
+    <script src="app/views/how.js"></script>
+    <script src="app/views/education.js"></script>
+    <script src="app/views/about.js"></script>
+
+    <script src="app/controllers/CheckController.js"></script>
+    <script src="app/controllers/PageController.js"></script>
+
+    <script src="app/router.js"></script>
+    <script src="app/main.js"></script>
+  </body>
+</html>
