@@ -1,2 +1,11 @@
+# Web framework & server
 fastapi>=0.110
 uvicorn[standard]>=0.29
+
+# BERT / deep learning
+torch>=2.0
+transformers>=4.40
+
+# Web scraping (untuk fetch konten halaman)
+requests>=2.31
+beautifulsoup4>=4.12

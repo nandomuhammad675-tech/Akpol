@@ -1,4 +1,11 @@
 venv/
+.venv/
 __pycache__/
 *.pyc
 .env
+
+# Large model files (exceeds GitHub 100MB limit)
+*.safetensors
+*.bin
+*.pt
+*.pth

@@ -1,8 +1,7 @@
 """Analisis karakteristik URL (aturan/heuristik).
 
 Logikanya dipindahkan dari frontend (app/models/UrlModels.js) supaya hasil
-backend sama dengan prototipe. Nanti bisa digabung dengan model BERT lewat
-bert_model.py.
+backend sama dengan prototipe. Digabung dengan model BERT lewat bert_model.py.
 """
 import re
 from urllib.parse import urlparse, urlunparse
@@ -22,11 +21,24 @@ SHORT = ["bit.ly", "tinyurl.com", "t.co", "goo.gl",
          "is.gd", "cutt.ly", "s.id", "rb.gy"]
 SECOND_LEVEL = ["co", "ac", "go", "or", "sch", "web", "net"]
 
+# Frasa yang sering muncul di situs judi online
+GAMBLING_PHRASES = [
+    "slot", "togel", "poker", "casino", "live casino", "online casino",
+    "sportsbook", "baccarat", "jackpot", "taruhan", "judi", "betting",
+    "slot rooms", "spin", "roulette", "blackjack", "sbobet", "maxbet",
+    "deposit pulsa", "bo slot", "gacor", "rtp", "pragmatic", "pg soft",
+]
+
 CATEGORIES = {
     "hi": {
         "name": "Risiko Tinggi", "tag": "Phishing",
         "explanation": "URL ini memiliki beberapa indikator yang umum ditemukan pada situs phishing. Meskipun tidak dapat dipastikan secara mutlak, kombinasi indikator tersebut menunjukkan potensi ancaman yang perlu diwaspadai.",
         "recommendation": "Jangan lanjutkan akses atau memasukkan data pribadi maupun kredensial akun pada website ini.",
+    },
+    "gb": {
+        "name": "Risiko Tinggi", "tag": "Indikasi Perjudian",
+        "explanation": "Terindikasi aktivitas perjudian online berdasarkan analisis konten halaman website oleh model BERT.",
+        "recommendation": "Akses situs perjudian online dapat melanggar hukum di Indonesia. Hindari memberikan data pribadi atau melakukan transaksi keuangan di situs ini.",
     },
     "md": {
         "name": "Risiko Sedang", "tag": "Waspada",
@@ -35,7 +47,7 @@ CATEGORIES = {
     },
     "lo": {
         "name": "Risiko Rendah", "tag": "Minim indikator",
-        "explanation": "Indikator phishing yang teridentifikasi relatif sedikit berdasarkan pemeriksaan karakteristik URL. Hasil ini tidak menjamin bahwa situs sepenuhnya aman.",
+        "explanation": "Tidak ditemukan indikator yang mencurigakan secara signifikan. Hasil ini tidak menjamin bahwa situs sepenuhnya aman.",
         "recommendation": "Tetap pastikan keaslian website sebelum memberikan informasi pribadi.",
     },
 }
@@ -115,4 +127,7 @@ def analyze_url(raw: str) -> dict:
                 add(35, f'Nama domain menyerupai merek "{brand}", tetapi bukan domain resminya ({official}).')
                 break
 
-    return {"url": full, "host": h, "indicators": ind}
+    # Deteksi kata gambling dari nama domain / path URL (fallback tanpa BERT)
+    url_gambling = [p for p in GAMBLING_PHRASES if p in haystack]
+
+    return {"url": full, "host": h, "indicators": ind, "url_gambling": url_gambling}

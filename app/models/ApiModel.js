@@ -2,13 +2,13 @@
 // Alamat backend bisa diganti dengan mengisi window.SG_API_BASE sebelum script ini dimuat.
 SG.models.Api = (function () {
   var BASE = window.SG_API_BASE || "http://127.0.0.1:8000";
-  var TIMEOUT_MS = 10000;
+  var TIMEOUT_MS = 15000;
 
   // Ubah respons API menjadi bentuk data yang dipakai SG.views.result
   function toView(d) {
     return {
       url: d.url,
-      indicators: d.indicators,
+      indicators: d.indicators || [],
       name: d.name,
       tag: d.tag,
       exp: d.explanation,
@@ -16,6 +16,8 @@ SG.models.Api = (function () {
       level: d.level,
       score: d.score,
       source: d.source,
+      detected_phrases: d.detected_phrases || [],
+      evidence: d.evidence || [],
       checkedAt: new Date(d.checkedAt).toLocaleString("id-ID", {
         dateStyle: "long",
         timeStyle: "short",
@@ -29,6 +31,8 @@ SG.models.Api = (function () {
     if (a.err) return Promise.reject({ validation: true, message: a.err });
     var r = SG.models.Risk.build(a);
     r.source = "local";
+    r.detected_phrases = a.url_gambling || [];
+    r.evidence = [];
     r.exp +=
       " (Server analisis tidak dapat dihubungi, sehingga pemeriksaan dilakukan secara lokal di perangkat Anda.)";
     return Promise.resolve(r);

@@ -7,6 +7,12 @@ SG.models.Risk = (function () {
       exp: "URL ini memiliki beberapa indikator yang umum ditemukan pada situs phishing. Meskipun tidak dapat dipastikan secara mutlak, kombinasi indikator tersebut menunjukkan potensi ancaman yang perlu diwaspadai.",
       rec: "Jangan lanjutkan akses atau memasukkan data pribadi maupun kredensial akun pada website ini.",
     },
+    gb: {
+      name: "Risiko Tinggi",
+      tag: "Indikasi Perjudian",
+      exp: "Terindikasi aktivitas perjudian online berdasarkan analisis konten halaman website. Situs perjudian tidak otomatis dikategorikan sebagai phishing, namun tetap berisiko tinggi.",
+      rec: "Akses situs perjudian online dapat melanggar hukum di Indonesia. Hindari memberikan data pribadi atau melakukan transaksi keuangan di situs ini.",
+    },
     md: {
       name: "Risiko Sedang",
       tag: "Waspada",
@@ -16,7 +22,7 @@ SG.models.Risk = (function () {
     lo: {
       name: "Risiko Rendah",
       tag: "Minim indikator",
-      exp: "Indikator phishing yang teridentifikasi relatif sedikit berdasarkan pemeriksaan karakteristik URL. Hasil ini tidak menjamin bahwa situs sepenuhnya aman.",
+      exp: "Tidak ditemukan indikator yang mencurigakan secara signifikan. Hasil ini tidak menjamin bahwa situs sepenuhnya aman.",
       rec: "Tetap pastikan keaslian website sebelum memberikan informasi pribadi.",
     },
   };
@@ -37,5 +43,5 @@ SG.models.Risk = (function () {
       }),
     });
   }
-  return { build: build };
+  return { build: build, CAT: CAT };
 })();
