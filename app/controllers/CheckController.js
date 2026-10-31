@@ -23,11 +23,10 @@ SG.controllers.Check = {
     var local = SG.models.Url.analyze(raw);
     if (local.err) return SG.views.message(local.err);
 
-    // Panggilan ke API bersifat asynchronous: tampilkan "loading" dulu,
+    // Panggilan ke API bersifat asynchronous: tampilkan animasi scanning dulu,
     // lalu ganti isi halaman setelah hasil datang.
     var token = (SG.state.token = (SG.state.token || 0) + 1);
     function show(html) {
-      // Abaikan bila pengguna sudah pindah halaman / memeriksa URL lain
       if (SG.state.token !== token) return;
       if (location.hash.indexOf("#/hasil") !== 0) return;
       document.getElementById("app").innerHTML = SG.views.layout("/hasil", html);
@@ -44,6 +43,6 @@ SG.controllers.Check = {
         );
       },
     );
-    return SG.views.message("Memeriksa URL, mohon tunggu sebentar...");
+    return SG.views.loading(raw);
   },
 };
