@@ -18,7 +18,8 @@
    - [Opsi B: Menjalankan Manual Lewat Terminal](#opsi-b-menjalankan-manual-lewat-terminal)
 6. [Skenario Pengujian untuk Dewan Juri](#-skenario-pengujian-untuk-dewan-juri-test-cases)
 7. [Dokumentasi API (FastAPI Swagger)](#-dokumentasi-api-fastapi-swagger)
-8. [Tim Pengembang](#-tim-pengembang)
+8. [AI Use and Third-Party Declaration](#-ai-use-and-third-party-declaration)
+9. [Tim Pengembang](#-tim-pengembang)
 
 ---
 
@@ -303,6 +304,42 @@ Saat server backend berjalan di port 8000, Anda dapat mengakses dokumentasi API 
     "url": "https://contoh-website.com"
   }
   ```
+
+---
+
+## 🤖 AI Use and Third-Party Declaration
+
+Sebagai wujud transparansi, integritas akademik, dan kepatuhan terhadap regulasi kompetisi/hackathon, berikut adalah deklarasi resmi mengenai penggunaan teknologi Kecerdasan Buatan (AI) serta pustaka/aset pihak ketiga (*Third-Party*) dalam pengembangan proyek **SCAMGUARD**:
+
+### 1. Deklarasi Penggunaan Kecerdasan Buatan (AI Use Declaration)
+
+| Komponen / Ranah | Jenis Teknologi AI yang Digunakan | Tujuan & Peran dalam Proyek |
+| :--- | :--- | :--- |
+| **Model Utama Solusi (In-Product AI)** | **Fine-Tuned BERT Transformer** (`bert_category_38_experiment`) | Digunakan sebagai inti mesin inferensi analisis konten teks halaman website (hasil *live scraping*). Model dilatih secara khusus (*supervised fine-tuning*) untuk mengklasifikasikan halaman ke dalam 3 kategori: `Legitimate`, `Phishing`, dan `Online Gambling`. |
+| **Asistensi Pengembangan (Development Assistance)** | **Google Antigravity & Gemini LLM** | Digunakan sebagai asisten pemrograman (*pair programming assistant*) untuk membantu mempercepat penulisan kode *boilerplate*, *code refactoring*, debugging pola regex leksikal URL, serta penyusunan dokumentasi teknis. |
+| **Kemandirian & Orisinalitas Karya** | **Tim Akpoll (Pengembang)** | Arsitektur *Hybrid Scoring* (40% aturan leksikal URL + 60% BERT), penanganan error HTTP 404 & deteksi DNS NXDOMAIN, pemisahan enkripsi HTTPS dari legitimasi, kurasi dataset, serta arsitektur Frontend MVC dirancang dan diimplementasikan secara mandiri oleh tim pengembang. |
+
+---
+
+### 2. Deklarasi Perangkat Lunak & Pustaka Pihak Ketiga (Third-Party Declaration)
+
+Seluruh pustaka pihak ketiga yang digunakan dalam proyek ini berlisensi *open-source* yang sah dan diakui:
+
+#### A. Backend & Machine Learning
+- **PyTorch** (*BSD License*): Framework komputasi tensor untuk inferensi model deep learning.
+- **Hugging Face Transformers & Tokenizers** (*Apache 2.0*): Pustaka untuk memuat arsitektur model Transformer BERT dan tokenisasi teks.
+- **Safetensors** (*Apache 2.0*): Format penyimpanan bobot model yang aman, cepat, dan terhindar dari *arbitrary code execution*.
+- **FastAPI** (*MIT License*): Kerangka kerja web berkinerja tinggi untuk menyediakan REST API `/api/check`.
+- **Uvicorn** (*BSD License*): Server ASGI berkecepatan tinggi untuk menjalankan aplikasi backend.
+- **BeautifulSoup4 & Requests** (*MIT & Apache 2.0*): Pustaka untuk *live web content scraping* dan parsing struktur DOM HTML.
+
+#### B. Frontend & Desain
+- **Vanilla JavaScript**: Seluruh antarmuka web dibangun menggunakan JavaScript murni dengan pola desain MVC (Model-View-Controller) **tanpa framework pihak ketiga** (seperti React, Vue, atau Angular), menjamin kecepatan muat yang sangat ringan.
+- **Google Fonts** (*SIL Open Font License 1.1*): Tipografi `Plus Jakarta Sans` dan `JetBrains Mono`.
+- **Custom SVG Icons**: Ikon visual vektor kustom yang dibuat ringan tanpa dependensi pustaka ikon eksternal.
+
+#### C. Dataset Pelatihan Model
+- Dataset teks konten web untuk pelatihan BERT dikurasi dan dihimpun dari repositori data terbuka (phishing feeds, database situs sah) serta dataset frasa perjudian online yang dikurasi khusus oleh tim untuk keperluan riset dan kompetisi ini.
 
 ---
 
