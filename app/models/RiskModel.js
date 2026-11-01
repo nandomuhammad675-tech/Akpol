@@ -25,6 +25,18 @@ SG.models.Risk = (function () {
       exp: "Tidak ditemukan indikator yang mencurigakan secara signifikan. Hasil ini tidak menjamin bahwa situs sepenuhnya aman.",
       rec: "Tetap pastikan keaslian website sebelum memberikan informasi pribadi.",
     },
+    not_found: {
+      name: "Halaman Tidak Ditemukan",
+      tag: "HTTP 404",
+      exp: "Halaman web yang diperiksa mengembalikan status HTTP 404 (Halaman tidak ditemukan). Konten tidak tersedia untuk dianalisis, sehingga situs ini tidak dapat disimpulkan sebagai aman atau sah (legitimate).",
+      rec: "Pastikan kembali penulisan URL. Tautan mungkin rusak, kedaluwarsa, atau konten telah dihapus oleh pemilik situs.",
+    },
+    unknown: {
+      name: "Tidak Dapat Dianalisis",
+      tag: "Unknown",
+      exp: "Halaman web menampilkan indikasi galat/error atau akses ditolak. Karena konten fungsional tidak dapat dimuat, sistem tidak dapat menyimpulkan bahwa situs ini aman.",
+      rec: "Hindari memasukkan informasi pribadi pada halaman yang bermasalah atau menampilkan akses ditolak. Pastikan situs resmi dan dapat diakses normal.",
+    },
   };
   function build(a) {
     var score = Math.min(

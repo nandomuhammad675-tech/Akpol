@@ -710,6 +710,17 @@ h2 {
   --c: var(--green);
 }
 
+.head.unknown {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  --c: #475569;
+}
+
+.head.unknown .ico {
+  background: #64748b;
+  color: #ffffff;
+}
+
 .head .ico {
   background: var(--c);
   color: #ffffff;
@@ -916,6 +927,22 @@ h2 {
   background: var(--greenbg);
   border-color: #b5e4cc;
   --c: var(--green);
+}
+
+.rekom.unknown {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  --c: #475569;
+}
+
+.ind li.note-item {
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+}
+
+.ind li.note-item svg {
+  background: #64748b;
+  color: #ffffff;
 }
 
 /* Banner Peringatan Perjudian */

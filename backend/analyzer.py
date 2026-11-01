@@ -50,6 +50,16 @@ CATEGORIES = {
         "explanation": "Tidak ditemukan indikator yang mencurigakan secara signifikan. Hasil ini tidak menjamin bahwa situs sepenuhnya aman.",
         "recommendation": "Tetap pastikan keaslian website sebelum memberikan informasi pribadi.",
     },
+    "not_found": {
+        "name": "Halaman Tidak Ditemukan", "tag": "HTTP 404",
+        "explanation": "Halaman web yang diperiksa mengembalikan status HTTP 404 (Halaman tidak ditemukan). Konten tidak tersedia untuk dianalisis, sehingga situs ini tidak dapat disimpulkan sebagai aman atau sah (legitimate).",
+        "recommendation": "Pastikan kembali penulisan URL. Tautan mungkin rusak, kedaluwarsa, atau konten telah dihapus oleh pemilik situs.",
+    },
+    "unknown": {
+        "name": "Tidak Dapat Dianalisis", "tag": "Unknown",
+        "explanation": "Halaman web mengembalikan status galat/error atau akses dibatasi. Karena konten fungsional tidak dapat dianalisis, sistem tidak dapat menyimpulkan bahwa situs ini aman.",
+        "recommendation": "Hindari memasukkan informasi pribadi pada halaman yang menampilkan status error atau akses ditolak. Periksa kembali domain resmi dari layanan yang Anda tuju.",
+    },
 }
 
 

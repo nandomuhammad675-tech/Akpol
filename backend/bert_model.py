@@ -68,36 +68,42 @@ except Exception as _e:
 
 # ── Utilitas: validasi & scraping URL ─────────────────────────────────────────
 
-def _validate_url(url: str) -> bool:
-    """Tolak URL internal/lokal/tidak aman."""
+def _validate_url(url: str) -> tuple[bool, str]:
+    """Tolak URL internal/lokal/tidak aman, dan periksa apakah domain dapat di-resolve di DNS."""
     try:
         parsed = urlparse(url)
         if parsed.scheme not in ("http", "https"):
-            return False
+            return False, "Hanya URL berawalan http:// atau https:// yang diperbolehkan"
         hostname = (parsed.hostname or "").lower()
         if not hostname or parsed.username or parsed.password:
-            return False
+            return False, "Format URL atau nama domain tidak valid"
         if hostname in ("localhost",) or hostname.endswith(".localhost"):
-            return False
+            return False, "Akses ke domain localhost ditolak"
         if hostname.endswith(".local"):
-            return False
+            return False, "Akses ke domain lokal (.local) ditolak"
         try:
-            for addr in socket.getaddrinfo(hostname, None, type=socket.SOCK_STREAM):
+            addresses = socket.getaddrinfo(hostname, None, type=socket.SOCK_STREAM)
+            if not addresses:
+                return False, "Domain tidak terdaftar atau tidak ditemukan pada DNS (NXDOMAIN)"
+            for addr in addresses:
                 if not ipaddress.ip_address(addr[4][0]).is_global:
-                    return False
-        except (socket.gaierror, ValueError):
-            return False
-        return True
-    except Exception:
-        return False
+                    return False, "Alamat IP privat / lokal ditolak"
+        except socket.gaierror:
+            return False, "Domain tidak terdaftar atau tidak ditemukan pada DNS (NXDOMAIN)"
+        except ValueError:
+            return False, "Alamat IP domain tidak valid"
+        return True, ""
+    except Exception as e:
+        return False, f"URL tidak valid ({e})"
 
 
 def fetch_page_data(url: str) -> dict:
-    """Ambil data halaman: judul, deskripsi, teks bersih, dan token representatif."""
+    """Ambil data halaman: status HTTP, judul, deskripsi, teks bersih, dan deteksi error."""
     parsed = urlparse(url)
     default_title = parsed.netloc
 
-    if not _validate_url(url):
+    is_valid, validation_msg = _validate_url(url)
+    if not is_valid:
         return {
             "title": default_title,
             "description": "",
@@ -105,6 +111,10 @@ def fetch_page_data(url: str) -> dict:
             "tokens": [],
             "gambling_phrases": [],
             "accessible": False,
+            "status_code": None,
+            "is_404": False,
+            "is_error_page": True,
+            "error_reason": validation_msg,
         }
 
     headers = {
@@ -120,6 +130,32 @@ def fetch_page_data(url: str) -> dict:
     desc = ""
     combined = ""
     accessible = False
+    status_code = None
+    is_404 = False
+    is_error_page = False
+    error_reason = ""
+
+    ERROR_TITLE_PATTERNS = [
+        r"\b404\b.*not\s*found",
+        r"not\s*found.*\b404\b",
+        r"^404\b",
+        r"\bpage\s+not\s+found\b",
+        r"\bhalaman\s+tidak\s+ditemukan\b",
+        r"\baccess\s+denied\b",
+        r"\baccess\s+forbidden\b",
+        r"\b403\s+forbidden\b",
+        r"^forbidden$",
+        r"\bunauthorized\b",
+        r"\bbad\s+request\b",
+        r"\bbad\s+gateway\b",
+        r"\bservice\s+unavailable\b",
+        r"\binternal\s+server\s+error\b",
+        r"\berror\s+404\b",
+        r"\bwebsite\s+blocked\b",
+        r"\bsitus\s+diblokir\b",
+        r"\bcloudflare\b.*attention\s+required",
+        r"just\s+a\s+moment\.\.\.",
+    ]
 
     try:
         resp = requests.get(
@@ -129,6 +165,20 @@ def fetch_page_data(url: str) -> dict:
             allow_redirects=True,
             stream=True,
         )
+        status_code = resp.status_code
+
+        # Validasi HTTP status code
+        if status_code == 404:
+            is_404 = True
+            is_error_page = True
+            error_reason = "Halaman tidak ditemukan (HTTP 404 Not Found)"
+        elif status_code in (401, 403):
+            is_error_page = True
+            error_reason = f"Akses ditolak (HTTP {status_code} Access Denied/Forbidden)"
+        elif status_code >= 500:
+            is_error_page = True
+            error_reason = f"Server mengalami galat (HTTP {status_code} Server Error)"
+
         content_type = resp.headers.get("Content-Type", "").lower()
         if "text/html" in content_type:
             raw = bytearray()
@@ -149,9 +199,38 @@ def fetch_page_data(url: str) -> dict:
                 tag.decompose()
             body = soup.get_text(separator=" ", strip=True)
             combined = (title + " " + desc + " " + body).strip()
+
+            # Deteksi halaman error berdasarkan judul
+            if title:
+                t_lower = title.lower()
+                for pattern in ERROR_TITLE_PATTERNS:
+                    if re.search(pattern, t_lower):
+                        is_error_page = True
+                        if any(k in t_lower for k in ("404", "not found", "tidak ditemukan")):
+                            is_404 = True
+                            error_reason = f"Judul halaman: '{title}' (404 Not Found)"
+                        else:
+                            error_reason = f"Judul halaman terindikasi error: '{title}'"
+                        break
+
+            # Deteksi body error yang sangat singkat
+            if not is_error_page and len(combined) < 150:
+                b_lower = combined.lower()
+                for pattern in ERROR_TITLE_PATTERNS[:8]:
+                    if re.search(pattern, b_lower):
+                        is_error_page = True
+                        if any(k in b_lower for k in ("404", "not found", "tidak ditemukan")):
+                            is_404 = True
+                            error_reason = "Konten halaman mengindikasikan 404 Not Found"
+                        else:
+                            error_reason = f"Konten halaman mengindikasikan error: '{combined[:60]}'"
+                        break
+
             accessible = True
     except Exception as e:
         print(f"[bert_model] fetch_page_data warning for {url}: {e}")
+        accessible = False
+        error_reason = f"Website tidak dapat diakses ({e})"
 
     # Ekstraksi frasa gambling jika ada
     text_lower = (combined or (parsed.netloc + " " + parsed.path)).lower()
@@ -185,7 +264,11 @@ def fetch_page_data(url: str) -> dict:
         "text": combined,
         "tokens": tokens,
         "gambling_phrases": gambling_phrases[:8],
-        "accessible": accessible,
+        "accessible": accessible and not is_error_page,
+        "status_code": status_code,
+        "is_404": is_404,
+        "is_error_page": is_error_page,
+        "error_reason": error_reason,
     }
 
 
@@ -195,17 +278,61 @@ def classify(url: str) -> Optional[dict]:
     """Klasifikasi URL menggunakan model BERT dan konten website.
 
     Return dict berisi:
-      - category: "legitimate" | "phishing" | "online_gambling"
+      - category: "legitimate" | "phishing" | "online_gambling" | "not_found" | "unknown"
       - confidence: float 0.0–1.0
       - gambling_phrases: list[str]
       - tokens: list[str]
       - title: str
       - description: str
       - accessible: bool
+      - status_code: Optional[int]
+      - error_reason: str
     """
     page_data = fetch_page_data(url)
     phrases = page_data["gambling_phrases"]
     text = page_data["text"] or page_data["title"]
+
+    # 1. Validasi HTTP 404 (Halaman Tidak Ditemukan)
+    if page_data["is_404"]:
+        return {
+            "category": "not_found",
+            "confidence": 0.0,
+            "gambling_phrases": [],
+            "tokens": [],
+            "title": page_data["title"] or "404 Not Found",
+            "description": page_data["description"],
+            "accessible": False,
+            "status_code": page_data.get("status_code", 404),
+            "error_reason": page_data.get("error_reason") or "Halaman tidak ditemukan (HTTP 404)",
+        }
+
+    # 2. Deteksi Halaman Error / Access Denied (Unknown)
+    if page_data["is_error_page"]:
+        return {
+            "category": "unknown",
+            "confidence": 0.0,
+            "gambling_phrases": [],
+            "tokens": [],
+            "title": page_data["title"] or "Error / Access Denied",
+            "description": page_data["description"],
+            "accessible": False,
+            "status_code": page_data.get("status_code", 200),
+            "error_reason": page_data.get("error_reason") or f"Judul halaman terdeteksi error: '{page_data['title']}'",
+        }
+
+    # Jika website tidak bisa diakses sama sekali (koneksi ditolak / domain mati)
+    if not page_data["accessible"]:
+        return {
+            "category": "unknown",
+            "confidence": 0.0,
+            "gambling_phrases": [],
+            "tokens": [],
+            "title": page_data["title"],
+            "description": "",
+            "accessible": False,
+            "status_code": page_data.get("status_code"),
+            "error_reason": page_data.get("error_reason") or "Website tidak dapat diakses atau domain tidak aktif",
+        }
 
     pred_category = None
     confidence = 0.0
@@ -243,6 +370,8 @@ def classify(url: str) -> Optional[dict]:
             "title": page_data["title"],
             "description": page_data["description"],
             "accessible": page_data["accessible"],
+            "status_code": page_data.get("status_code", 200),
+            "error_reason": "",
         }
 
     # Jika BERT mendeteksi phishing dengan probabilitas tinggi
@@ -255,9 +384,11 @@ def classify(url: str) -> Optional[dict]:
             "title": page_data["title"],
             "description": page_data["description"],
             "accessible": page_data["accessible"],
+            "status_code": page_data.get("status_code", 200),
+            "error_reason": "",
         }
 
-    # Default untuk situs resmi / aman: legitimate
+    # Default untuk situs resmi yang berhasil diakses secara normal: legitimate
     return {
         "category": "legitimate",
         "confidence": 0.95 if confidence < 0.60 else round(confidence, 4),
@@ -266,6 +397,8 @@ def classify(url: str) -> Optional[dict]:
         "title": page_data["title"],
         "description": page_data["description"],
         "accessible": page_data["accessible"],
+        "status_code": page_data.get("status_code", 200),
+        "error_reason": "",
     }
 
 

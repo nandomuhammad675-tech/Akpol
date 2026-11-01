@@ -57,13 +57,23 @@ def check(req: CheckRequest):
     bert_result = bert_model.classify(a["url"])
 
     if bert_result is not None:
-        category = bert_result["category"]       # legitimate | phishing | online_gambling
+        category = bert_result["category"]       # legitimate | phishing | online_gambling | not_found | unknown
         confidence = bert_result["confidence"]
         gambling_phrases_found = bert_result.get("gambling_phrases", [])
         tokens_found = bert_result.get("tokens", [])
         page_title = bert_result.get("title") or a["host"]
 
-        if category == "online_gambling":
+        if category == "not_found":
+            level = "not_found"
+            score = 0
+            source = "http_validation"
+
+        elif category == "unknown":
+            level = "unknown"
+            score = 0
+            source = "error_detection"
+
+        elif category == "online_gambling":
             level = "gb"
             score = 95
             source = "bert"
@@ -88,12 +98,124 @@ def check(req: CheckRequest):
             level = "gb"
             score = 95
             source = "rules+url"
+        else:
+            level = "unknown"
+            score = 0
+            source = "error_detection"
 
-    cat = CATEGORIES[level]
+    cat = CATEGORIES.get(level, CATEGORIES["unknown"])
 
     # Format indikator & penjelasan
     indicators = []
-    if level == "gb" and gambling_phrases_found:
+
+    # 1. Kasus: Halaman Tidak Ditemukan (HTTP 404)
+    if level == "not_found":
+        err_msg = bert_result.get("error_reason", "Halaman tidak ditemukan (HTTP 404)")
+        indicators.append({
+            "ok": False,
+            "weight": 0,
+            "text": f"Status Server: {err_msg}."
+        })
+        indicators.append({
+            "ok": False,
+            "weight": 0,
+            "text": "Konten halaman tidak tersedia untuk dianalisis oleh model BERT."
+        })
+        indicators.append({
+            "ok": False,
+            "weight": 0,
+            "text": "Status: Halaman Tidak Ditemukan — Sistem menolak menyimpulkan website sebagai aman atau sah (legitimate)."
+        })
+        # Pisahkan HTTPS dari legitimasi
+        if a["url"].startswith("https://"):
+            indicators.append({
+                "ok": None,
+                "weight": 0,
+                "text": "Protokol: HTTPS (Koneksi terenkripsi). Catatan: HTTPS hanya mengamankan transmisi data dan bukan bukti bahwa halaman tersebut aman atau valid."
+            })
+        else:
+            indicators.append({
+                "ok": False,
+                "weight": 20,
+                "text": "Protokol: HTTP (Tidak terenkripsi, data rentan disadap)."
+            })
+        explanation = (
+            f"Halaman web yang diperiksa mengembalikan status HTTP 404 (Halaman tidak ditemukan). "
+            f"Karena konten tidak ada atau telah dipindahkan, sistem tidak dapat menganalisis isi halaman "
+            f"dan tidak menyimpulkan bahwa situs ini aman atau sah (legitimate)."
+        )
+        active_tokens = []
+
+    # 2. Kasus: Deteksi Halaman Error / Access Denied / DNS Gagal (Unknown)
+    elif level == "unknown":
+        err_msg = (bert_result and bert_result.get("error_reason")) or f"Judul halaman: '{page_title}'"
+        is_dns_fail = any(k in err_msg.lower() for k in ("dns", "nxdomain", "tidak terdaftar", "tidak ditemukan pada dns"))
+
+        if is_dns_fail:
+            tag_custom = "Domain Tidak Ditemukan"
+            indicators.append({
+                "ok": False,
+                "weight": 0,
+                "text": f"Status Domain: {err_msg}."
+            })
+            indicators.append({
+                "ok": False,
+                "weight": 0,
+                "text": "Status: Tidak Dapat Dianalisis (Unknown) — Website ngawur / tidak aktif tidak disimpulkan sebagai aman."
+            })
+            indicators.append({
+                "ok": False,
+                "weight": 0,
+                "text": "Pemeriksaan model AI dibatalkan karena tidak ada konten yang dapat diakses."
+            })
+            explanation = (
+                f"Domain '{a['host']}' yang Anda periksa tidak terdaftar di DNS global atau servernya tidak aktif ({err_msg}). "
+                f"Karena situs ini tidak memiliki konten yang dapat diakses, sistem menandainya sebagai 'Tidak Dapat Dianalisis' (Unknown) "
+                f"dan TIDAK menyimpulkan bahwa situs ini aman atau sah (legitimate)."
+            )
+            recommendation_custom = "Periksa kembali alamat website. Tautan mungkin salah ketik atau domain palsu yang sudah tidak aktif."
+        else:
+            tag_custom = cat["tag"]
+            indicators.append({
+                "ok": False,
+                "weight": 0,
+                "text": f"Status Halaman: {err_msg}."
+            })
+            indicators.append({
+                "ok": False,
+                "weight": 0,
+                "text": "Status: Tidak Dapat Dianalisis (Unknown) — Halaman error tidak disimpulkan sebagai aman."
+            })
+            indicators.append({
+                "ok": False,
+                "weight": 0,
+                "text": "Model BERT tidak dapat menganalisis halaman karena konten fungsional tidak tersedia."
+            })
+            explanation = (
+                f"Halaman web menampilkan indikasi galat atau akses dibatasi ({err_msg}). "
+                f"Karena konten halaman tidak dapat dimuat secara normal, "
+                f"sistem menandai situs ini sebagai 'Tidak Dapat Dianalisis' (Unknown). "
+                f"Situs ini tidak dapat disimpulkan sebagai website sah (legitimate) maupun aman."
+            )
+            recommendation_custom = cat["recommendation"]
+
+        # Pisahkan HTTPS dari legitimasi
+        if a["url"].startswith("https://"):
+            indicators.append({
+                "ok": None,
+                "weight": 0,
+                "text": "Protokol: HTTPS (Koneksi terenkripsi). Peringatan: Website phishing dan halaman penipuan juga dapat menggunakan HTTPS."
+            })
+        else:
+            indicators.append({
+                "ok": False,
+                "weight": 20,
+                "text": "Protokol: HTTP (Tidak terenkripsi, data rentan disadap)."
+            })
+        active_tokens = []
+
+    # 3. Kasus: Indikasi Perjudian
+    elif level == "gb" and gambling_phrases_found:
         for phrase in gambling_phrases_found:
             indicators.append({
                 "ok": False,
@@ -106,6 +228,12 @@ def check(req: CheckRequest):
                 "weight": ind.get("weight", 10),
                 "text": ind["text"]
             })
+        if a["url"].startswith("https://"):
+            indicators.append({
+                "ok": None,
+                "weight": 0,
+                "text": "Protokol: HTTPS (Koneksi terenkripsi). Catatan: Situs perjudian juga menggunakan sertifikat SSL/HTTPS."
+            })
         frasa = ", ".join(gambling_phrases_found)
         explanation = (
             f"Terindikasi aktivitas perjudian online. "
@@ -114,8 +242,8 @@ def check(req: CheckRequest):
         )
         active_tokens = gambling_phrases_found
 
+    # 4. Kasus: Risiko Rendah (Legitimate)
     elif level == "lo":
-        # Format positif untuk situs aman / legitimate
         indicators.append({
             "ok": True,
             "weight": 0,
@@ -127,30 +255,46 @@ def check(req: CheckRequest):
                 "weight": 0,
                 "text": f"Judul website terverifikasi: '{page_title}'."
             })
+        # PISAHKAN HTTPS DARI INDIKATOR LEGITIMASI:
+        if a["url"].startswith("https://"):
+            indicators.append({
+                "ok": None,
+                "weight": 0,
+                "text": "Koneksi terenkripsi (HTTPS). Catatan: HTTPS hanya mengamankan transmisi data, bukan bukti situs bebas dari phishing."
+            })
+        else:
+            indicators.append({
+                "ok": False,
+                "weight": 20,
+                "text": "Tidak menggunakan HTTPS (protokol HTTP tidak terenkripsi)."
+            })
         indicators.append({
             "ok": True,
             "weight": 0,
-            "text": "Menggunakan protokol enkripsi aman (HTTPS)."
-        })
-        indicators.append({
-            "ok": True,
-            "weight": 0,
-            "text": "Tidak ditemukan indikator phishing, pemalsuan identitas, maupun perjudian."
+            "text": "Tidak ditemukan indikator phishing, pemalsuan identitas, maupun perjudian pada konten."
         })
         title_str = f' "{page_title}"' if page_title and page_title != a["host"] else ""
         explanation = (
             f"Berdasarkan analisis konten website dan model BERT, halaman ini dinilai memiliki tingkat risiko rendah. "
             f"Konten website{title_str} telah diperiksa dan tidak menunjukkan adanya formulir pencurian data (phishing), "
-            f"rekayasa sosial, maupun indikasi penipuan daring."
+            f"rekayasa sosial, maupun indikasi penipuan daring. "
+            f"(Peringatan Keamanan: Protokol HTTPS hanya menunjukkan koneksi data terenkripsi, bukan jaminan mutlak situs aman.)"
         )
         active_tokens = tokens_found or [a["host"]]
 
+    # 5. Kasus: Risiko Sedang / Tinggi (Phishing / Heuristik)
     else:
         for ind in a["indicators"]:
             indicators.append({
                 "ok": False,
                 "weight": ind.get("weight", 10),
                 "text": ind["text"]
+            })
+        if a["url"].startswith("https://") and not any("HTTPS" in i["text"] for i in indicators):
+            indicators.append({
+                "ok": None,
+                "weight": 0,
+                "text": "Protokol: HTTPS (Koneksi terenkripsi). Catatan: Website phishing modern juga banyak menggunakan HTTPS."
             })
         explanation = cat["explanation"]
         active_tokens = tokens_found
@@ -162,11 +306,11 @@ def check(req: CheckRequest):
         "score": score,
         "level": level,           # hi | gb | md | lo
         "name": cat["name"],
-        "tag": cat["tag"],
+        "tag": tag_custom if "tag_custom" in locals() else cat["tag"],
         "page_title": page_title,
         "indicators": indicators,
         "explanation": explanation,
-        "recommendation": cat["recommendation"],
+        "recommendation": recommendation_custom if "recommendation_custom" in locals() else cat["recommendation"],
         "detected_phrases": active_tokens,
         "evidence": evidence,
         "source": source,

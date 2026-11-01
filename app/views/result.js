@@ -4,15 +4,18 @@ SG.views.result = function (r) {
     esc = SG.util.esc,
     C = 2 * Math.PI * 44,
     off = C * (1 - r.score / 100);
-  var displayLevel = r.level === "gb" ? "hi" : r.level;
+  var isSpecial = r.level === "unknown" || r.level === "not_found";
+  var displayLevel = r.level === "gb" ? "hi" : (isSpecial ? "unknown" : r.level);
 
-  // Daftar indikator (mendukung status 'ok' warna hijau dan 'x' warna merah)
+  // Daftar indikator (mendukung ok: hijau, x: merah, null: catatan netral protokol)
   var list = r.indicators.length
     ? r.indicators
         .map(function (x, idx) {
-          var isOk = x.ok === true || (x.ok !== false && r.level === "lo");
-          var iconName = isOk ? "ok" : "x";
-          var itemClass = isOk ? ' class="ok"' : "";
+          var isOk = x.ok === true;
+          var isBad = x.ok === false;
+          var isNeutral = x.ok === null || x.ok === undefined;
+          var iconName = isOk ? "ok" : (isBad ? "x" : "lock");
+          var itemClass = isOk ? ' class="ok"' : (isBad ? "" : ' class="note-item"');
           return (
             "<li" +
             itemClass +
@@ -89,6 +92,15 @@ SG.views.result = function (r) {
     sourceText = "Metode: Model Transformer/BERT (Konten Scraping)";
   } else if (r.source === "rules+bert") {
     sourceText = "Metode: Hybrid (Model BERT 60% + Heuristik URL 40%)";
+  } else if (r.source === "http_validation") {
+    sourceText = "Metode: Validasi Respons HTTP & Kode Status";
+  } else if (r.source === "error_detection") {
+    sourceText = "Metode: Deteksi Konten & Header Halaman Galat";
+  }
+  if (r.source === "bert") {
+    sourceText = "Metode: Model Transformer/BERT (Konten Scraping)";
+  } else if (r.source === "rules+bert") {
+    sourceText = "Metode: Hybrid (Model BERT 60% + Heuristik URL 40%)";
   }
 
   return (
@@ -116,12 +128,12 @@ SG.views.result = function (r) {
     '<circle class="ring-fill" cx="54" cy="54" r="44" fill="none" stroke="var(--c)" stroke-width="9" stroke-linecap="round" stroke-dasharray="' +
     C +
     '" stroke-dashoffset="' +
-    off +
+    (isSpecial ? 0 : off) +
     '"/>' +
     "</svg><b>" +
-    r.score +
-    "<small>Skor Risiko<br>" +
-    r.name.replace("Risiko ", "") +
+    (isSpecial ? "?" : r.score) +
+    "<small>" +
+    (isSpecial ? "Status<br>" + esc(r.tag) : ("Skor Risiko<br>" + esc(r.name.replace("Risiko ", "")))) +
     "</small></b></div></div>" +
     '<div class="body">' +
     gamblingBanner +
