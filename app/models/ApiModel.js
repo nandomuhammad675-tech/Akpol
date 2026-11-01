@@ -1,7 +1,7 @@
 // MODEL: komunikasi dengan backend SCAMGUARD (POST /api/check)
 // Alamat backend bisa diganti dengan mengisi window.SG_API_BASE sebelum script ini dimuat.
 SG.models.Api = (function () {
-  var BASE = window.SG_API_BASE || "http://127.0.0.1:8000";
+  var BASE = window.SG_API_BASE || "https://sic-barry-valley-feb.trycloudflare.com";
   var TIMEOUT_MS = 15000;
 
   // Ubah respons API menjadi bentuk data yang dipakai SG.views.result

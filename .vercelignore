@@ -1,0 +1,7 @@
+backend/
+hf_space/
+*.bat
+jalankan_backend.bat
+jalankan_frontend.bat
+scamguard_frontend.zip
+
